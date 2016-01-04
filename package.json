@@ -1,0 +1,42 @@
+{
+  "name": "todomvc-express-and-service-worker",
+  "version": "1.0.0",
+  "description": "Server-side TodoMVC rendered with ExpressJS but running inside ServiceWorker demo",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "npm run build",
+    "todomvc-build": "npm run todomvc-build-service && npm run todomvc-build-client",
+    "todomvc-build-service": "browserify index.js -o dist/express-service.js",
+    "todomvc-build-client": "cp node_modules/express-service/dist/client.js node_modules/todomvc-express/src/app.css dist",
+    "start": "http-server dist",
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bahmutov/todomvc-express-and-service-worker.git"
+  },
+  "private": true,
+  "keywords": [
+    "express",
+    "expressjs",
+    "service",
+    "worker",
+    "sw",
+    "todomvc",
+    "demo"
+  ],
+  "author": "Gleb Bahmutov <gleb.bahmutov@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/bahmutov/todomvc-express-and-service-worker/issues"
+  },
+  "homepage": "https://github.com/bahmutov/todomvc-express-and-service-worker#readme",
+  "dependencies": {
+    "express-service": "1.4.1",
+    "http-server": "0.8.5",
+    "todomvc-express": "1.1.2"
+  },
+  "devDependencies": {
+    "browserify": "12.0.1"
+  }
+}
