@@ -5,11 +5,11 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "npm run build",
-    "todomvc-build": "npm run todomvc-build-service && npm run todomvc-build-client",
+    "build": "npm run todomvc-build",
+    "todomvc-build": "npm run todomvc-build-client && npm run todomvc-build-service",
     "todomvc-build-service": "browserify index.js -o dist/express-service.js",
-    "todomvc-build-client": "cp node_modules/express-service/dist/client.js node_modules/todomvc-express/src/app.css dist",
-    "start": "http-server dist",
+    "todomvc-build-client": "mkdir dist && cp node_modules/express-service/dist/client.js node_modules/todomvc-express/src/app.css dist",
+    "start": "http-server dist"
   },
   "repository": {
     "type": "git",
