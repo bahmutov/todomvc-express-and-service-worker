@@ -3,7 +3,7 @@ const expressService = require('express-service')
 const app = require('todomvc-express')
 expressService(app)
 
-},{"express-service":253,"todomvc-express":426}],2:[function(require,module,exports){
+},{"express-service":253,"todomvc-express":438}],2:[function(require,module,exports){
 
 },{}],3:[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
@@ -30553,12 +30553,22 @@ function XMLHttpRequest () {
 module.exports = XMLHttpRequest
 
 },{}],252:[function(require,module,exports){
-(function (global){
+(function (process,global){
 // patch and mock the environment
 
 // XMLHttpRequest is used to figure out the environment features
 if (typeof global.XMLHttpRequest === 'undefined') {
   global.XMLHttpRequest = require('./XMLHttpRequest-mock')
+}
+
+// high resolution timestamps
+/* global performance */
+process.hrtime = performance.now.bind(performance)
+
+process.stdout = {
+  write: function fakeWrite (str) {
+    console.log(str)
+  }
 }
 
 // http structures used inside Express
@@ -30608,8 +30618,8 @@ if (typeof fs.existsSync === 'undefined') {
   }
 }
 
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./XMLHttpRequest-mock":251,"fs":2,"http":238}],253:[function(require,module,exports){
+}).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"./XMLHttpRequest-mock":251,"_process":219,"fs":2,"http":238}],253:[function(require,module,exports){
 'use strict'
 
 // ServiceWorker script
@@ -30683,7 +30693,10 @@ function expressService (app) {
           headers: {
             'content-type': event.request.headers.get('content-type')
           },
-          unpipe: function () {}
+          unpipe: function () {},
+          connection: {
+            remoteAddress: '::1'
+          }
         }
         // console.log(req)
         var res = {
@@ -39059,6 +39072,21 @@ module.exports={
     "source": "iana",
     "compressible": false
   },
+  "application/emergencycalldata.comment+xml": {
+    "source": "iana"
+  },
+  "application/emergencycalldata.deviceinfo+xml": {
+    "source": "iana"
+  },
+  "application/emergencycalldata.providerinfo+xml": {
+    "source": "iana"
+  },
+  "application/emergencycalldata.serviceinfo+xml": {
+    "source": "iana"
+  },
+  "application/emergencycalldata.subscriberinfo+xml": {
+    "source": "iana"
+  },
   "application/emma+xml": {
     "source": "iana",
     "extensions": ["emma"]
@@ -40633,6 +40661,9 @@ module.exports={
   "application/vnd.ffsns": {
     "source": "iana"
   },
+  "application/vnd.filmit.zfc": {
+    "source": "iana"
+  },
   "application/vnd.fints": {
     "source": "iana"
   },
@@ -40764,6 +40795,18 @@ module.exports={
   "application/vnd.gmx": {
     "source": "iana",
     "extensions": ["gmx"]
+  },
+  "application/vnd.google-apps.document": {
+    "compressible": false,
+    "extensions": ["gdoc"]
+  },
+  "application/vnd.google-apps.presentation": {
+    "compressible": false,
+    "extensions": ["gslides"]
+  },
+  "application/vnd.google-apps.spreadsheet": {
+    "compressible": false,
+    "extensions": ["gsheet"]
   },
   "application/vnd.google-earth.kml+xml": {
     "source": "iana",
@@ -41182,6 +41225,9 @@ module.exports={
     "source": "iana",
     "extensions": ["portpkg"]
   },
+  "application/vnd.mapbox-vector-tile": {
+    "source": "iana"
+  },
   "application/vnd.marlin.drm.actiontoken+xml": {
     "source": "iana"
   },
@@ -41423,6 +41469,9 @@ module.exports={
     "source": "iana",
     "extensions": ["potm"]
   },
+  "application/vnd.ms-printdevicecapabilities+xml": {
+    "source": "iana"
+  },
   "application/vnd.ms-printing.printticket+xml": {
     "source": "apache"
   },
@@ -41431,6 +41480,12 @@ module.exports={
     "extensions": ["mpp","mpt"]
   },
   "application/vnd.ms-tnef": {
+    "source": "iana"
+  },
+  "application/vnd.ms-windows.devicepairing": {
+    "source": "iana"
+  },
+  "application/vnd.ms-windows.nwprinting.oob": {
     "source": "iana"
   },
   "application/vnd.ms-windows.printerpairing": {
@@ -42597,6 +42652,9 @@ module.exports={
   "application/vnd.tmd.mediaflex.api+xml": {
     "source": "iana"
   },
+  "application/vnd.tml": {
+    "source": "iana"
+  },
   "application/vnd.tmobile-livetv": {
     "source": "iana",
     "extensions": ["tmo"]
@@ -43659,6 +43717,9 @@ module.exports={
     "source": "iana"
   },
   "audio/evrcwb1": {
+    "source": "iana"
+  },
+  "audio/evs": {
     "source": "iana"
   },
   "audio/fwdred": {
@@ -60044,6 +60105,719 @@ arguments[4][347][0].apply(exports,arguments)
 },{"dup":347,"url":244}],392:[function(require,module,exports){
 arguments[4][373][0].apply(exports,arguments)
 },{"dup":373}],393:[function(require,module,exports){
+(function (process){
+/*!
+ * morgan
+ * Copyright(c) 2010 Sencha Inc.
+ * Copyright(c) 2011 TJ Holowaychuk
+ * Copyright(c) 2014 Jonathan Ong
+ * Copyright(c) 2014-2015 Douglas Christopher Wilson
+ * MIT Licensed
+ */
+
+'use strict'
+
+/**
+ * Module exports.
+ * @public
+ */
+
+module.exports = morgan
+module.exports.compile = compile
+module.exports.format = format
+module.exports.token = token
+
+/**
+ * Module dependencies.
+ * @private
+ */
+
+var auth = require('basic-auth')
+var debug = require('debug')('morgan')
+var deprecate = require('depd')('morgan')
+var onFinished = require('on-finished')
+var onHeaders = require('on-headers')
+
+/**
+ * Array of CLF month names.
+ * @private
+ */
+
+var clfmonth = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+]
+
+/**
+ * Default log buffer duration.
+ * @private
+ */
+
+var defaultBufferDuration = 1000;
+
+/**
+ * Create a logger middleware.
+ *
+ * @public
+ * @param {String|Function} format
+ * @param {Object} [options]
+ * @return {Function} middleware
+ */
+
+function morgan(format, options) {
+  var fmt = format
+  var opts = options || {}
+
+  if (format && typeof format === 'object') {
+    opts = format
+    fmt = opts.format || 'default'
+
+    // smart deprecation message
+    deprecate('morgan(options): use morgan(' + (typeof fmt === 'string' ? JSON.stringify(fmt) : 'format') + ', options) instead')
+  }
+
+  if (fmt === undefined) {
+    deprecate('undefined format: specify a format')
+  }
+
+  // output on request instead of response
+  var immediate = opts.immediate
+
+  // check if log entry should be skipped
+  var skip = opts.skip || false
+
+  // format function
+  var formatLine = typeof fmt !== 'function'
+    ? getFormatFunction(fmt)
+    : fmt
+
+  // stream
+  var buffer = opts.buffer
+  var stream = opts.stream || process.stdout
+
+  // buffering support
+  if (buffer) {
+    deprecate('buffer option')
+
+    // flush interval
+    var interval = typeof buffer !== 'number'
+      ? defaultBufferDuration
+      : buffer
+
+    // swap the stream
+    stream = createBufferStream(stream, interval)
+  }
+
+  return function logger(req, res, next) {
+    // request data
+    req._startAt = undefined
+    req._startTime = undefined
+    req._remoteAddress = getip(req)
+
+    // response data
+    res._startAt = undefined
+    res._startTime = undefined
+
+    // record request start
+    recordStartTime.call(req)
+
+    function logRequest() {
+      if (skip !== false && skip(req, res)) {
+        debug('skip request')
+        return
+      }
+
+      var line = formatLine(morgan, req, res)
+
+      if (null == line) {
+        debug('skip line')
+        return
+      }
+
+      debug('log request')
+      stream.write(line + '\n')
+    };
+
+    if (immediate) {
+      // immediate log
+      logRequest()
+    } else {
+      // record response start
+      onHeaders(res, recordStartTime)
+
+      // log when response finished
+      onFinished(res, logRequest)
+    }
+
+    next();
+  };
+}
+
+/**
+ * Apache combined log format.
+ */
+
+morgan.format('combined', ':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"')
+
+/**
+ * Apache common log format.
+ */
+
+morgan.format('common', ':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length]')
+
+/**
+ * Default format.
+ */
+
+morgan.format('default', ':remote-addr - :remote-user [:date] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"')
+deprecate.property(morgan, 'default', 'default format: use combined format')
+
+/**
+ * Short format.
+ */
+
+morgan.format('short', ':remote-addr :remote-user :method :url HTTP/:http-version :status :res[content-length] - :response-time ms')
+
+/**
+ * Tiny format.
+ */
+
+morgan.format('tiny', ':method :url :status :res[content-length] - :response-time ms')
+
+/**
+ * dev (colored)
+ */
+
+morgan.format('dev', function developmentFormatLine(tokens, req, res) {
+  // get the status code if response written
+  var status = res._header
+    ? res.statusCode
+    : undefined
+
+  // get status color
+  var color = status >= 500 ? 31 // red
+    : status >= 400 ? 33 // yellow
+    : status >= 300 ? 36 // cyan
+    : status >= 200 ? 32 // green
+    : 0 // no color
+
+  // get colored function
+  var fn = developmentFormatLine[color]
+
+  if (!fn) {
+    // compile
+    fn = developmentFormatLine[color] = compile('\x1b[0m:method :url \x1b['
+      + color + 'm:status \x1b[0m:response-time ms - :res[content-length]\x1b[0m')
+  }
+
+  return fn(tokens, req, res)
+})
+
+/**
+ * request url
+ */
+
+morgan.token('url', function getUrlToken(req) {
+  return req.originalUrl || req.url
+})
+
+/**
+ * request method
+ */
+
+morgan.token('method', function getMethodToken(req) {
+  return req.method;
+});
+
+/**
+ * response time in milliseconds
+ */
+
+morgan.token('response-time', function getResponseTimeToken(req, res) {
+  if (!req._startAt || !res._startAt) {
+    // missing request and/or response start time
+    return
+  }
+
+  // calculate diff
+  var ms = (res._startAt[0] - req._startAt[0]) * 1e3
+    + (res._startAt[1] - req._startAt[1]) * 1e-6
+
+  // return truncated value
+  return ms.toFixed(3)
+})
+
+/**
+ * current date
+ */
+
+morgan.token('date', function getDateToken(req, res, format) {
+  var date = new Date()
+
+  switch (format || 'web') {
+    case 'clf':
+      return clfdate(date)
+    case 'iso':
+      return date.toISOString()
+    case 'web':
+      return date.toUTCString()
+  }
+});
+
+/**
+ * response status code
+ */
+
+morgan.token('status', function getStatusToken(req, res) {
+  return res._header
+    ? String(res.statusCode)
+    : undefined
+})
+
+/**
+ * normalized referrer
+ */
+
+morgan.token('referrer', function getReferrerToken(req) {
+  return req.headers['referer'] || req.headers['referrer'];
+});
+
+/**
+ * remote address
+ */
+
+morgan.token('remote-addr', getip)
+
+/**
+ * remote user
+ */
+
+morgan.token('remote-user', function getRemoteUserToken(req) {
+  // parse basic credentials
+  var credentials = auth(req)
+
+  // return username
+  return credentials
+    ? credentials.name
+    : undefined
+})
+
+/**
+ * HTTP version
+ */
+
+morgan.token('http-version', function getHttpVersionToken(req) {
+  return req.httpVersionMajor + '.' + req.httpVersionMinor
+})
+
+/**
+ * UA string
+ */
+
+morgan.token('user-agent', function getUserAgentToken(req) {
+  return req.headers['user-agent'];
+});
+
+/**
+ * request header
+ */
+
+morgan.token('req', function getRequestToken(req, res, field) {
+  // get header
+  var header = req.headers[field.toLowerCase()]
+
+  return Array.isArray(header)
+    ? header.join(', ')
+    : header
+})
+
+/**
+ * response header
+ */
+
+morgan.token('res', function getResponseTime(req, res, field) {
+  if (!res._header) {
+    return undefined
+  }
+
+  // get header
+  var header = res.getHeader(field)
+
+  return Array.isArray(header)
+    ? header.join(', ')
+    : header
+})
+
+/**
+ * Format a Date in the common log format.
+ *
+ * @private
+ * @param {Date} dateTime
+ * @return {string}
+ */
+
+function clfdate(dateTime) {
+  var date = dateTime.getUTCDate()
+  var hour = dateTime.getUTCHours()
+  var mins = dateTime.getUTCMinutes()
+  var secs = dateTime.getUTCSeconds()
+  var year = dateTime.getUTCFullYear()
+
+  var month = clfmonth[dateTime.getUTCMonth()]
+
+  return pad2(date) + '/' + month + '/' + year
+    + ':' + pad2(hour) + ':' + pad2(mins) + ':' + pad2(secs)
+    + ' +0000'
+}
+
+/**
+ * Compile a format string into a function.
+ *
+ * @param {string} format
+ * @return {function}
+ * @public
+ */
+
+function compile(format) {
+  if (typeof format !== 'string') {
+    throw new TypeError('argument format must be a string')
+  }
+
+  var fmt = format.replace(/"/g, '\\"')
+  var js = '  return "' + fmt.replace(/:([-\w]{2,})(?:\[([^\]]+)\])?/g, function(_, name, arg) {
+    return '"\n    + (tokens["' + name + '"](req, res, ' + String(JSON.stringify(arg)) + ') || "-") + "'
+  }) + '";'
+
+  return new Function('tokens, req, res', js)
+}
+
+/**
+ * Create a basic buffering stream.
+ *
+ * @param {object} stream
+ * @param {number} interval
+ * @public
+ */
+
+function createBufferStream(stream, interval) {
+  var buf = []
+  var timer = null
+
+  // flush function
+  function flush() {
+    timer = null
+    stream.write(buf.join(''))
+    buf.length = 0
+  }
+
+  // write function
+  function write(str) {
+    if (timer === null) {
+      timer = setTimeout(flush, interval)
+    }
+
+    buf.push(str)
+  }
+
+  // return a minimal "stream"
+  return { write: write }
+}
+
+/**
+ * Define a format with the given name.
+ *
+ * @param {string} name
+ * @param {string|function} fmt
+ * @public
+ */
+
+function format(name, fmt) {
+  morgan[name] = fmt
+  return this
+}
+
+/**
+ * Lookup and compile a named format function.
+ *
+ * @param {string} name
+ * @return {function}
+ * @public
+ */
+
+function getFormatFunction(name) {
+  // lookup format
+  var fmt = morgan[name] || name || morgan.default
+
+  // return compiled format
+  return typeof fmt !== 'function'
+    ? compile(fmt)
+    : fmt
+}
+
+/**
+ * Get request IP address.
+ *
+ * @private
+ * @param {IncomingMessage} req
+ * @return {string}
+ */
+
+function getip(req) {
+  return req.ip
+    || req._remoteAddress
+    || (req.connection && req.connection.remoteAddress)
+    || undefined;
+}
+
+/**
+ * Pad number to two digits.
+ *
+ * @private
+ * @param {number} num
+ * @return {string}
+ */
+
+function pad2(num) {
+  var str = String(num)
+
+  return (str.length === 1 ? '0' : '')
+    + str
+}
+
+/**
+ * Record the start time.
+ * @private
+ */
+
+function recordStartTime() {
+  this._startAt = process.hrtime()
+  this._startTime = new Date()
+}
+
+/**
+ * Define a token function with the given name,
+ * and callback fn(req, res).
+ *
+ * @param {string} name
+ * @param {function} fn
+ * @public
+ */
+
+function token(name, fn) {
+  morgan[name] = fn
+  return this
+}
+
+}).call(this,require('_process'))
+},{"_process":219,"basic-auth":394,"debug":395,"depd":398,"on-finished":402,"on-headers":404}],394:[function(require,module,exports){
+(function (Buffer){
+/*!
+ * basic-auth
+ * Copyright(c) 2013 TJ Holowaychuk
+ * Copyright(c) 2014 Jonathan Ong
+ * Copyright(c) 2015 Douglas Christopher Wilson
+ * MIT Licensed
+ */
+
+'use strict'
+
+/**
+ * Module exports.
+ * @public
+ */
+
+module.exports = auth
+
+/**
+ * RegExp for basic auth credentials
+ *
+ * credentials = auth-scheme 1*SP token68
+ * auth-scheme = "Basic" ; case insensitive
+ * token68     = 1*( ALPHA / DIGIT / "-" / "." / "_" / "~" / "+" / "/" ) *"="
+ * @private
+ */
+
+var credentialsRegExp = /^ *(?:[Bb][Aa][Ss][Ii][Cc]) +([A-Za-z0-9\-\._~\+\/]+=*) *$/
+
+/**
+ * RegExp for basic auth user/pass
+ *
+ * user-pass   = userid ":" password
+ * userid      = *<TEXT excluding ":">
+ * password    = *TEXT
+ * @private
+ */
+
+var userPassRegExp = /^([^:]*):(.*)$/
+
+/**
+ * Parse the Authorization header field of a request.
+ *
+ * @param {object} req
+ * @return {object} with .name and .pass
+ * @public
+ */
+
+function auth(req) {
+  if (!req) {
+    throw new TypeError('argument req is required')
+  }
+
+  // get header
+  var header = (req.req || req).headers.authorization
+
+  // parse header
+  var match = credentialsRegExp.exec(header || '')
+
+  if (!match) {
+    return
+  }
+
+  // decode user pass
+  var userPass = userPassRegExp.exec(decodeBase64(match[1]))
+
+  if (!userPass) {
+    return
+  }
+
+  // return credentials object
+  return new Credentials(userPass[1], userPass[2])
+}
+
+/**
+ * Decode base64 string.
+ * @private
+ */
+
+function decodeBase64(str) {
+  return new Buffer(str, 'base64').toString()
+}
+
+/**
+ * Object to represent user credentials.
+ * @private
+ */
+
+function Credentials(name, pass) {
+  this.name = name
+  this.pass = pass
+}
+
+}).call(this,require("buffer").Buffer)
+},{"buffer":18}],395:[function(require,module,exports){
+arguments[4][262][0].apply(exports,arguments)
+},{"./debug":396,"dup":262}],396:[function(require,module,exports){
+arguments[4][263][0].apply(exports,arguments)
+},{"dup":263,"ms":397}],397:[function(require,module,exports){
+arguments[4][264][0].apply(exports,arguments)
+},{"dup":264}],398:[function(require,module,exports){
+arguments[4][334][0].apply(exports,arguments)
+},{"./lib/compat":401,"_process":219,"dup":334,"events":214,"path":218}],399:[function(require,module,exports){
+arguments[4][335][0].apply(exports,arguments)
+},{"buffer":18,"dup":335}],400:[function(require,module,exports){
+arguments[4][336][0].apply(exports,arguments)
+},{"dup":336}],401:[function(require,module,exports){
+arguments[4][337][0].apply(exports,arguments)
+},{"./buffer-concat":399,"./callsite-tostring":400,"buffer":18,"dup":337}],402:[function(require,module,exports){
+arguments[4][291][0].apply(exports,arguments)
+},{"_process":219,"dup":291,"ee-first":403}],403:[function(require,module,exports){
+arguments[4][292][0].apply(exports,arguments)
+},{"dup":292}],404:[function(require,module,exports){
+/*!
+ * on-headers
+ * Copyright(c) 2014 Douglas Christopher Wilson
+ * MIT Licensed
+ */
+
+'use strict'
+
+/**
+ * Reference to Array slice.
+ */
+
+var slice = Array.prototype.slice
+
+/**
+ * Execute a listener when a response is about to write headers.
+ *
+ * @param {Object} res
+ * @return {Function} listener
+ * @api public
+ */
+
+module.exports = function onHeaders(res, listener) {
+  if (!res) {
+    throw new TypeError('argument res is required')
+  }
+
+  if (typeof listener !== 'function') {
+    throw new TypeError('argument listener must be a function')
+  }
+
+  res.writeHead = createWriteHead(res.writeHead, listener)
+}
+
+function createWriteHead(prevWriteHead, listener) {
+  var fired = false;
+
+  // return function with core name and argument list
+  return function writeHead(statusCode) {
+    // set headers from arguments
+    var args = setWriteHeadHeaders.apply(this, arguments);
+
+    // fire listener
+    if (!fired) {
+      fired = true
+      listener.call(this)
+
+      // pass-along an updated status code
+      if (typeof args[0] === 'number' && this.statusCode !== args[0]) {
+        args[0] = this.statusCode
+        args.length = 1
+      }
+    }
+
+    prevWriteHead.apply(this, args);
+  }
+}
+
+function setWriteHeadHeaders(statusCode) {
+  var length = arguments.length
+  var headerIndex = length > 1 && typeof arguments[1] === 'string'
+    ? 2
+    : 1
+
+  var headers = length >= headerIndex + 1
+    ? arguments[headerIndex]
+    : undefined
+
+  this.statusCode = statusCode
+
+  // the following block is from node.js core
+  if (Array.isArray(headers)) {
+    // handle array case
+    for (var i = 0, len = headers.length; i < len; ++i) {
+      this.setHeader(headers[i][0], headers[i][1])
+    }
+  } else if (headers) {
+    // handle object case
+    var keys = Object.keys(headers)
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i]
+      if (k) this.setHeader(k, headers[k])
+    }
+  }
+
+  // copy leading arguments
+  var args = new Array(Math.min(length, headerIndex))
+  for (var i = 0; i < args.length; i++) {
+    args[i] = arguments[i]
+  }
+
+  return args
+}
+
+},{}],405:[function(require,module,exports){
 const la = require('lazy-ass')
 const is = require('check-more-types')
 const uuid = require('./uuid')
@@ -60089,7 +60863,7 @@ la(is.array(Todos.items), 'expected list of todos', Todos.items)
 
 module.exports = Todos
 
-},{"./uuid":394,"check-more-types":304,"lazy-ass":385}],394:[function(require,module,exports){
+},{"./uuid":406,"check-more-types":304,"lazy-ass":385}],406:[function(require,module,exports){
 // from http://jsfiddle.net/briguy37/2mvfd/
 function uuid () {
   var d = new Date().getTime()
@@ -60104,7 +60878,7 @@ function uuid () {
 
 module.exports = uuid
 
-},{}],395:[function(require,module,exports){
+},{}],407:[function(require,module,exports){
 var escape = require('escape-html');
 var propConfig = require('./property-config');
 var types = propConfig.attributeTypes;
@@ -60174,7 +60948,7 @@ function memoizeString(callback) {
     }
   };
 }
-},{"./property-config":405,"escape-html":397}],396:[function(require,module,exports){
+},{"./property-config":417,"escape-html":409}],408:[function(require,module,exports){
 var escape = require('escape-html');
 var extend = require('xtend');
 var isVNode = require('virtual-dom/vnode/is-vnode');
@@ -60266,7 +61040,7 @@ function closeTag(node) {
   var tag = node.tagName.toLowerCase();
   return voidElements[tag] ? '' : '</' + tag + '>';
 }
-},{"./create-attribute":395,"./void-elements":406,"escape-html":397,"param-case":403,"virtual-dom/virtual-hyperscript/hooks/attribute-hook":413,"virtual-dom/virtual-hyperscript/hooks/soft-set-hook":415,"virtual-dom/vnode/is-thunk":418,"virtual-dom/vnode/is-vnode":420,"virtual-dom/vnode/is-vtext":421,"virtual-dom/vnode/is-widget":422,"xtend":404}],397:[function(require,module,exports){
+},{"./create-attribute":407,"./void-elements":418,"escape-html":409,"param-case":415,"virtual-dom/virtual-hyperscript/hooks/attribute-hook":425,"virtual-dom/virtual-hyperscript/hooks/soft-set-hook":427,"virtual-dom/vnode/is-thunk":430,"virtual-dom/vnode/is-vnode":432,"virtual-dom/vnode/is-vtext":433,"virtual-dom/vnode/is-widget":434,"xtend":416}],409:[function(require,module,exports){
 /*!
  * escape-html
  * Copyright(c) 2012-2013 TJ Holowaychuk
@@ -60346,7 +61120,7 @@ function escapeHtml(string) {
     : html;
 }
 
-},{}],398:[function(require,module,exports){
+},{}],410:[function(require,module,exports){
 /**
  * Special language-specific overrides.
  *
@@ -60402,7 +61176,7 @@ module.exports = function (str, locale) {
   return str.toLowerCase()
 }
 
-},{}],399:[function(require,module,exports){
+},{}],411:[function(require,module,exports){
 var lowerCase = require('lower-case')
 
 var NON_WORD_REGEXP = require('./vendor/non-word-regexp')
@@ -60444,16 +61218,16 @@ module.exports = function (str, locale, replacement) {
   return lowerCase(str, locale)
 }
 
-},{"./vendor/camel-case-regexp":400,"./vendor/non-word-regexp":401,"./vendor/trailing-digit-regexp":402,"lower-case":398}],400:[function(require,module,exports){
+},{"./vendor/camel-case-regexp":412,"./vendor/non-word-regexp":413,"./vendor/trailing-digit-regexp":414,"lower-case":410}],412:[function(require,module,exports){
 module.exports = /([\u0061-\u007A\u00B5\u00DF-\u00F6\u00F8-\u00FF\u0101\u0103\u0105\u0107\u0109\u010B\u010D\u010F\u0111\u0113\u0115\u0117\u0119\u011B\u011D\u011F\u0121\u0123\u0125\u0127\u0129\u012B\u012D\u012F\u0131\u0133\u0135\u0137\u0138\u013A\u013C\u013E\u0140\u0142\u0144\u0146\u0148\u0149\u014B\u014D\u014F\u0151\u0153\u0155\u0157\u0159\u015B\u015D\u015F\u0161\u0163\u0165\u0167\u0169\u016B\u016D\u016F\u0171\u0173\u0175\u0177\u017A\u017C\u017E-\u0180\u0183\u0185\u0188\u018C\u018D\u0192\u0195\u0199-\u019B\u019E\u01A1\u01A3\u01A5\u01A8\u01AA\u01AB\u01AD\u01B0\u01B4\u01B6\u01B9\u01BA\u01BD-\u01BF\u01C6\u01C9\u01CC\u01CE\u01D0\u01D2\u01D4\u01D6\u01D8\u01DA\u01DC\u01DD\u01DF\u01E1\u01E3\u01E5\u01E7\u01E9\u01EB\u01ED\u01EF\u01F0\u01F3\u01F5\u01F9\u01FB\u01FD\u01FF\u0201\u0203\u0205\u0207\u0209\u020B\u020D\u020F\u0211\u0213\u0215\u0217\u0219\u021B\u021D\u021F\u0221\u0223\u0225\u0227\u0229\u022B\u022D\u022F\u0231\u0233-\u0239\u023C\u023F\u0240\u0242\u0247\u0249\u024B\u024D\u024F-\u0293\u0295-\u02AF\u0371\u0373\u0377\u037B-\u037D\u0390\u03AC-\u03CE\u03D0\u03D1\u03D5-\u03D7\u03D9\u03DB\u03DD\u03DF\u03E1\u03E3\u03E5\u03E7\u03E9\u03EB\u03ED\u03EF-\u03F3\u03F5\u03F8\u03FB\u03FC\u0430-\u045F\u0461\u0463\u0465\u0467\u0469\u046B\u046D\u046F\u0471\u0473\u0475\u0477\u0479\u047B\u047D\u047F\u0481\u048B\u048D\u048F\u0491\u0493\u0495\u0497\u0499\u049B\u049D\u049F\u04A1\u04A3\u04A5\u04A7\u04A9\u04AB\u04AD\u04AF\u04B1\u04B3\u04B5\u04B7\u04B9\u04BB\u04BD\u04BF\u04C2\u04C4\u04C6\u04C8\u04CA\u04CC\u04CE\u04CF\u04D1\u04D3\u04D5\u04D7\u04D9\u04DB\u04DD\u04DF\u04E1\u04E3\u04E5\u04E7\u04E9\u04EB\u04ED\u04EF\u04F1\u04F3\u04F5\u04F7\u04F9\u04FB\u04FD\u04FF\u0501\u0503\u0505\u0507\u0509\u050B\u050D\u050F\u0511\u0513\u0515\u0517\u0519\u051B\u051D\u051F\u0521\u0523\u0525\u0527\u0561-\u0587\u1D00-\u1D2B\u1D6B-\u1D77\u1D79-\u1D9A\u1E01\u1E03\u1E05\u1E07\u1E09\u1E0B\u1E0D\u1E0F\u1E11\u1E13\u1E15\u1E17\u1E19\u1E1B\u1E1D\u1E1F\u1E21\u1E23\u1E25\u1E27\u1E29\u1E2B\u1E2D\u1E2F\u1E31\u1E33\u1E35\u1E37\u1E39\u1E3B\u1E3D\u1E3F\u1E41\u1E43\u1E45\u1E47\u1E49\u1E4B\u1E4D\u1E4F\u1E51\u1E53\u1E55\u1E57\u1E59\u1E5B\u1E5D\u1E5F\u1E61\u1E63\u1E65\u1E67\u1E69\u1E6B\u1E6D\u1E6F\u1E71\u1E73\u1E75\u1E77\u1E79\u1E7B\u1E7D\u1E7F\u1E81\u1E83\u1E85\u1E87\u1E89\u1E8B\u1E8D\u1E8F\u1E91\u1E93\u1E95-\u1E9D\u1E9F\u1EA1\u1EA3\u1EA5\u1EA7\u1EA9\u1EAB\u1EAD\u1EAF\u1EB1\u1EB3\u1EB5\u1EB7\u1EB9\u1EBB\u1EBD\u1EBF\u1EC1\u1EC3\u1EC5\u1EC7\u1EC9\u1ECB\u1ECD\u1ECF\u1ED1\u1ED3\u1ED5\u1ED7\u1ED9\u1EDB\u1EDD\u1EDF\u1EE1\u1EE3\u1EE5\u1EE7\u1EE9\u1EEB\u1EED\u1EEF\u1EF1\u1EF3\u1EF5\u1EF7\u1EF9\u1EFB\u1EFD\u1EFF-\u1F07\u1F10-\u1F15\u1F20-\u1F27\u1F30-\u1F37\u1F40-\u1F45\u1F50-\u1F57\u1F60-\u1F67\u1F70-\u1F7D\u1F80-\u1F87\u1F90-\u1F97\u1FA0-\u1FA7\u1FB0-\u1FB4\u1FB6\u1FB7\u1FBE\u1FC2-\u1FC4\u1FC6\u1FC7\u1FD0-\u1FD3\u1FD6\u1FD7\u1FE0-\u1FE7\u1FF2-\u1FF4\u1FF6\u1FF7\u210A\u210E\u210F\u2113\u212F\u2134\u2139\u213C\u213D\u2146-\u2149\u214E\u2184\u2C30-\u2C5E\u2C61\u2C65\u2C66\u2C68\u2C6A\u2C6C\u2C71\u2C73\u2C74\u2C76-\u2C7B\u2C81\u2C83\u2C85\u2C87\u2C89\u2C8B\u2C8D\u2C8F\u2C91\u2C93\u2C95\u2C97\u2C99\u2C9B\u2C9D\u2C9F\u2CA1\u2CA3\u2CA5\u2CA7\u2CA9\u2CAB\u2CAD\u2CAF\u2CB1\u2CB3\u2CB5\u2CB7\u2CB9\u2CBB\u2CBD\u2CBF\u2CC1\u2CC3\u2CC5\u2CC7\u2CC9\u2CCB\u2CCD\u2CCF\u2CD1\u2CD3\u2CD5\u2CD7\u2CD9\u2CDB\u2CDD\u2CDF\u2CE1\u2CE3\u2CE4\u2CEC\u2CEE\u2CF3\u2D00-\u2D25\u2D27\u2D2D\uA641\uA643\uA645\uA647\uA649\uA64B\uA64D\uA64F\uA651\uA653\uA655\uA657\uA659\uA65B\uA65D\uA65F\uA661\uA663\uA665\uA667\uA669\uA66B\uA66D\uA681\uA683\uA685\uA687\uA689\uA68B\uA68D\uA68F\uA691\uA693\uA695\uA697\uA723\uA725\uA727\uA729\uA72B\uA72D\uA72F-\uA731\uA733\uA735\uA737\uA739\uA73B\uA73D\uA73F\uA741\uA743\uA745\uA747\uA749\uA74B\uA74D\uA74F\uA751\uA753\uA755\uA757\uA759\uA75B\uA75D\uA75F\uA761\uA763\uA765\uA767\uA769\uA76B\uA76D\uA76F\uA771-\uA778\uA77A\uA77C\uA77F\uA781\uA783\uA785\uA787\uA78C\uA78E\uA791\uA793\uA7A1\uA7A3\uA7A5\uA7A7\uA7A9\uA7FA\uFB00-\uFB06\uFB13-\uFB17\uFF41-\uFF5A])([\u0041-\u005A\u00C0-\u00D6\u00D8-\u00DE\u0100\u0102\u0104\u0106\u0108\u010A\u010C\u010E\u0110\u0112\u0114\u0116\u0118\u011A\u011C\u011E\u0120\u0122\u0124\u0126\u0128\u012A\u012C\u012E\u0130\u0132\u0134\u0136\u0139\u013B\u013D\u013F\u0141\u0143\u0145\u0147\u014A\u014C\u014E\u0150\u0152\u0154\u0156\u0158\u015A\u015C\u015E\u0160\u0162\u0164\u0166\u0168\u016A\u016C\u016E\u0170\u0172\u0174\u0176\u0178\u0179\u017B\u017D\u0181\u0182\u0184\u0186\u0187\u0189-\u018B\u018E-\u0191\u0193\u0194\u0196-\u0198\u019C\u019D\u019F\u01A0\u01A2\u01A4\u01A6\u01A7\u01A9\u01AC\u01AE\u01AF\u01B1-\u01B3\u01B5\u01B7\u01B8\u01BC\u01C4\u01C7\u01CA\u01CD\u01CF\u01D1\u01D3\u01D5\u01D7\u01D9\u01DB\u01DE\u01E0\u01E2\u01E4\u01E6\u01E8\u01EA\u01EC\u01EE\u01F1\u01F4\u01F6-\u01F8\u01FA\u01FC\u01FE\u0200\u0202\u0204\u0206\u0208\u020A\u020C\u020E\u0210\u0212\u0214\u0216\u0218\u021A\u021C\u021E\u0220\u0222\u0224\u0226\u0228\u022A\u022C\u022E\u0230\u0232\u023A\u023B\u023D\u023E\u0241\u0243-\u0246\u0248\u024A\u024C\u024E\u0370\u0372\u0376\u0386\u0388-\u038A\u038C\u038E\u038F\u0391-\u03A1\u03A3-\u03AB\u03CF\u03D2-\u03D4\u03D8\u03DA\u03DC\u03DE\u03E0\u03E2\u03E4\u03E6\u03E8\u03EA\u03EC\u03EE\u03F4\u03F7\u03F9\u03FA\u03FD-\u042F\u0460\u0462\u0464\u0466\u0468\u046A\u046C\u046E\u0470\u0472\u0474\u0476\u0478\u047A\u047C\u047E\u0480\u048A\u048C\u048E\u0490\u0492\u0494\u0496\u0498\u049A\u049C\u049E\u04A0\u04A2\u04A4\u04A6\u04A8\u04AA\u04AC\u04AE\u04B0\u04B2\u04B4\u04B6\u04B8\u04BA\u04BC\u04BE\u04C0\u04C1\u04C3\u04C5\u04C7\u04C9\u04CB\u04CD\u04D0\u04D2\u04D4\u04D6\u04D8\u04DA\u04DC\u04DE\u04E0\u04E2\u04E4\u04E6\u04E8\u04EA\u04EC\u04EE\u04F0\u04F2\u04F4\u04F6\u04F8\u04FA\u04FC\u04FE\u0500\u0502\u0504\u0506\u0508\u050A\u050C\u050E\u0510\u0512\u0514\u0516\u0518\u051A\u051C\u051E\u0520\u0522\u0524\u0526\u0531-\u0556\u10A0-\u10C5\u10C7\u10CD\u1E00\u1E02\u1E04\u1E06\u1E08\u1E0A\u1E0C\u1E0E\u1E10\u1E12\u1E14\u1E16\u1E18\u1E1A\u1E1C\u1E1E\u1E20\u1E22\u1E24\u1E26\u1E28\u1E2A\u1E2C\u1E2E\u1E30\u1E32\u1E34\u1E36\u1E38\u1E3A\u1E3C\u1E3E\u1E40\u1E42\u1E44\u1E46\u1E48\u1E4A\u1E4C\u1E4E\u1E50\u1E52\u1E54\u1E56\u1E58\u1E5A\u1E5C\u1E5E\u1E60\u1E62\u1E64\u1E66\u1E68\u1E6A\u1E6C\u1E6E\u1E70\u1E72\u1E74\u1E76\u1E78\u1E7A\u1E7C\u1E7E\u1E80\u1E82\u1E84\u1E86\u1E88\u1E8A\u1E8C\u1E8E\u1E90\u1E92\u1E94\u1E9E\u1EA0\u1EA2\u1EA4\u1EA6\u1EA8\u1EAA\u1EAC\u1EAE\u1EB0\u1EB2\u1EB4\u1EB6\u1EB8\u1EBA\u1EBC\u1EBE\u1EC0\u1EC2\u1EC4\u1EC6\u1EC8\u1ECA\u1ECC\u1ECE\u1ED0\u1ED2\u1ED4\u1ED6\u1ED8\u1EDA\u1EDC\u1EDE\u1EE0\u1EE2\u1EE4\u1EE6\u1EE8\u1EEA\u1EEC\u1EEE\u1EF0\u1EF2\u1EF4\u1EF6\u1EF8\u1EFA\u1EFC\u1EFE\u1F08-\u1F0F\u1F18-\u1F1D\u1F28-\u1F2F\u1F38-\u1F3F\u1F48-\u1F4D\u1F59\u1F5B\u1F5D\u1F5F\u1F68-\u1F6F\u1FB8-\u1FBB\u1FC8-\u1FCB\u1FD8-\u1FDB\u1FE8-\u1FEC\u1FF8-\u1FFB\u2102\u2107\u210B-\u210D\u2110-\u2112\u2115\u2119-\u211D\u2124\u2126\u2128\u212A-\u212D\u2130-\u2133\u213E\u213F\u2145\u2183\u2C00-\u2C2E\u2C60\u2C62-\u2C64\u2C67\u2C69\u2C6B\u2C6D-\u2C70\u2C72\u2C75\u2C7E-\u2C80\u2C82\u2C84\u2C86\u2C88\u2C8A\u2C8C\u2C8E\u2C90\u2C92\u2C94\u2C96\u2C98\u2C9A\u2C9C\u2C9E\u2CA0\u2CA2\u2CA4\u2CA6\u2CA8\u2CAA\u2CAC\u2CAE\u2CB0\u2CB2\u2CB4\u2CB6\u2CB8\u2CBA\u2CBC\u2CBE\u2CC0\u2CC2\u2CC4\u2CC6\u2CC8\u2CCA\u2CCC\u2CCE\u2CD0\u2CD2\u2CD4\u2CD6\u2CD8\u2CDA\u2CDC\u2CDE\u2CE0\u2CE2\u2CEB\u2CED\u2CF2\uA640\uA642\uA644\uA646\uA648\uA64A\uA64C\uA64E\uA650\uA652\uA654\uA656\uA658\uA65A\uA65C\uA65E\uA660\uA662\uA664\uA666\uA668\uA66A\uA66C\uA680\uA682\uA684\uA686\uA688\uA68A\uA68C\uA68E\uA690\uA692\uA694\uA696\uA722\uA724\uA726\uA728\uA72A\uA72C\uA72E\uA732\uA734\uA736\uA738\uA73A\uA73C\uA73E\uA740\uA742\uA744\uA746\uA748\uA74A\uA74C\uA74E\uA750\uA752\uA754\uA756\uA758\uA75A\uA75C\uA75E\uA760\uA762\uA764\uA766\uA768\uA76A\uA76C\uA76E\uA779\uA77B\uA77D\uA77E\uA780\uA782\uA784\uA786\uA78B\uA78D\uA790\uA792\uA7A0\uA7A2\uA7A4\uA7A6\uA7A8\uA7AA\uFF21-\uFF3A\u0030-\u0039\u00B2\u00B3\u00B9\u00BC-\u00BE\u0660-\u0669\u06F0-\u06F9\u07C0-\u07C9\u0966-\u096F\u09E6-\u09EF\u09F4-\u09F9\u0A66-\u0A6F\u0AE6-\u0AEF\u0B66-\u0B6F\u0B72-\u0B77\u0BE6-\u0BF2\u0C66-\u0C6F\u0C78-\u0C7E\u0CE6-\u0CEF\u0D66-\u0D75\u0E50-\u0E59\u0ED0-\u0ED9\u0F20-\u0F33\u1040-\u1049\u1090-\u1099\u1369-\u137C\u16EE-\u16F0\u17E0-\u17E9\u17F0-\u17F9\u1810-\u1819\u1946-\u194F\u19D0-\u19DA\u1A80-\u1A89\u1A90-\u1A99\u1B50-\u1B59\u1BB0-\u1BB9\u1C40-\u1C49\u1C50-\u1C59\u2070\u2074-\u2079\u2080-\u2089\u2150-\u2182\u2185-\u2189\u2460-\u249B\u24EA-\u24FF\u2776-\u2793\u2CFD\u3007\u3021-\u3029\u3038-\u303A\u3192-\u3195\u3220-\u3229\u3248-\u324F\u3251-\u325F\u3280-\u3289\u32B1-\u32BF\uA620-\uA629\uA6E6-\uA6EF\uA830-\uA835\uA8D0-\uA8D9\uA900-\uA909\uA9D0-\uA9D9\uAA50-\uAA59\uABF0-\uABF9\uFF10-\uFF19])/g
 
-},{}],401:[function(require,module,exports){
+},{}],413:[function(require,module,exports){
 module.exports = /[^\u0041-\u005A\u0061-\u007A\u00AA\u00B5\u00BA\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02C1\u02C6-\u02D1\u02E0-\u02E4\u02EC\u02EE\u0370-\u0374\u0376\u0377\u037A-\u037D\u0386\u0388-\u038A\u038C\u038E-\u03A1\u03A3-\u03F5\u03F7-\u0481\u048A-\u0527\u0531-\u0556\u0559\u0561-\u0587\u05D0-\u05EA\u05F0-\u05F2\u0620-\u064A\u066E\u066F\u0671-\u06D3\u06D5\u06E5\u06E6\u06EE\u06EF\u06FA-\u06FC\u06FF\u0710\u0712-\u072F\u074D-\u07A5\u07B1\u07CA-\u07EA\u07F4\u07F5\u07FA\u0800-\u0815\u081A\u0824\u0828\u0840-\u0858\u08A0\u08A2-\u08AC\u0904-\u0939\u093D\u0950\u0958-\u0961\u0971-\u0977\u0979-\u097F\u0985-\u098C\u098F\u0990\u0993-\u09A8\u09AA-\u09B0\u09B2\u09B6-\u09B9\u09BD\u09CE\u09DC\u09DD\u09DF-\u09E1\u09F0\u09F1\u0A05-\u0A0A\u0A0F\u0A10\u0A13-\u0A28\u0A2A-\u0A30\u0A32\u0A33\u0A35\u0A36\u0A38\u0A39\u0A59-\u0A5C\u0A5E\u0A72-\u0A74\u0A85-\u0A8D\u0A8F-\u0A91\u0A93-\u0AA8\u0AAA-\u0AB0\u0AB2\u0AB3\u0AB5-\u0AB9\u0ABD\u0AD0\u0AE0\u0AE1\u0B05-\u0B0C\u0B0F\u0B10\u0B13-\u0B28\u0B2A-\u0B30\u0B32\u0B33\u0B35-\u0B39\u0B3D\u0B5C\u0B5D\u0B5F-\u0B61\u0B71\u0B83\u0B85-\u0B8A\u0B8E-\u0B90\u0B92-\u0B95\u0B99\u0B9A\u0B9C\u0B9E\u0B9F\u0BA3\u0BA4\u0BA8-\u0BAA\u0BAE-\u0BB9\u0BD0\u0C05-\u0C0C\u0C0E-\u0C10\u0C12-\u0C28\u0C2A-\u0C33\u0C35-\u0C39\u0C3D\u0C58\u0C59\u0C60\u0C61\u0C85-\u0C8C\u0C8E-\u0C90\u0C92-\u0CA8\u0CAA-\u0CB3\u0CB5-\u0CB9\u0CBD\u0CDE\u0CE0\u0CE1\u0CF1\u0CF2\u0D05-\u0D0C\u0D0E-\u0D10\u0D12-\u0D3A\u0D3D\u0D4E\u0D60\u0D61\u0D7A-\u0D7F\u0D85-\u0D96\u0D9A-\u0DB1\u0DB3-\u0DBB\u0DBD\u0DC0-\u0DC6\u0E01-\u0E30\u0E32\u0E33\u0E40-\u0E46\u0E81\u0E82\u0E84\u0E87\u0E88\u0E8A\u0E8D\u0E94-\u0E97\u0E99-\u0E9F\u0EA1-\u0EA3\u0EA5\u0EA7\u0EAA\u0EAB\u0EAD-\u0EB0\u0EB2\u0EB3\u0EBD\u0EC0-\u0EC4\u0EC6\u0EDC-\u0EDF\u0F00\u0F40-\u0F47\u0F49-\u0F6C\u0F88-\u0F8C\u1000-\u102A\u103F\u1050-\u1055\u105A-\u105D\u1061\u1065\u1066\u106E-\u1070\u1075-\u1081\u108E\u10A0-\u10C5\u10C7\u10CD\u10D0-\u10FA\u10FC-\u1248\u124A-\u124D\u1250-\u1256\u1258\u125A-\u125D\u1260-\u1288\u128A-\u128D\u1290-\u12B0\u12B2-\u12B5\u12B8-\u12BE\u12C0\u12C2-\u12C5\u12C8-\u12D6\u12D8-\u1310\u1312-\u1315\u1318-\u135A\u1380-\u138F\u13A0-\u13F4\u1401-\u166C\u166F-\u167F\u1681-\u169A\u16A0-\u16EA\u1700-\u170C\u170E-\u1711\u1720-\u1731\u1740-\u1751\u1760-\u176C\u176E-\u1770\u1780-\u17B3\u17D7\u17DC\u1820-\u1877\u1880-\u18A8\u18AA\u18B0-\u18F5\u1900-\u191C\u1950-\u196D\u1970-\u1974\u1980-\u19AB\u19C1-\u19C7\u1A00-\u1A16\u1A20-\u1A54\u1AA7\u1B05-\u1B33\u1B45-\u1B4B\u1B83-\u1BA0\u1BAE\u1BAF\u1BBA-\u1BE5\u1C00-\u1C23\u1C4D-\u1C4F\u1C5A-\u1C7D\u1CE9-\u1CEC\u1CEE-\u1CF1\u1CF5\u1CF6\u1D00-\u1DBF\u1E00-\u1F15\u1F18-\u1F1D\u1F20-\u1F45\u1F48-\u1F4D\u1F50-\u1F57\u1F59\u1F5B\u1F5D\u1F5F-\u1F7D\u1F80-\u1FB4\u1FB6-\u1FBC\u1FBE\u1FC2-\u1FC4\u1FC6-\u1FCC\u1FD0-\u1FD3\u1FD6-\u1FDB\u1FE0-\u1FEC\u1FF2-\u1FF4\u1FF6-\u1FFC\u2071\u207F\u2090-\u209C\u2102\u2107\u210A-\u2113\u2115\u2119-\u211D\u2124\u2126\u2128\u212A-\u212D\u212F-\u2139\u213C-\u213F\u2145-\u2149\u214E\u2183\u2184\u2C00-\u2C2E\u2C30-\u2C5E\u2C60-\u2CE4\u2CEB-\u2CEE\u2CF2\u2CF3\u2D00-\u2D25\u2D27\u2D2D\u2D30-\u2D67\u2D6F\u2D80-\u2D96\u2DA0-\u2DA6\u2DA8-\u2DAE\u2DB0-\u2DB6\u2DB8-\u2DBE\u2DC0-\u2DC6\u2DC8-\u2DCE\u2DD0-\u2DD6\u2DD8-\u2DDE\u2E2F\u3005\u3006\u3031-\u3035\u303B\u303C\u3041-\u3096\u309D-\u309F\u30A1-\u30FA\u30FC-\u30FF\u3105-\u312D\u3131-\u318E\u31A0-\u31BA\u31F0-\u31FF\u3400-\u4DB5\u4E00-\u9FCC\uA000-\uA48C\uA4D0-\uA4FD\uA500-\uA60C\uA610-\uA61F\uA62A\uA62B\uA640-\uA66E\uA67F-\uA697\uA6A0-\uA6E5\uA717-\uA71F\uA722-\uA788\uA78B-\uA78E\uA790-\uA793\uA7A0-\uA7AA\uA7F8-\uA801\uA803-\uA805\uA807-\uA80A\uA80C-\uA822\uA840-\uA873\uA882-\uA8B3\uA8F2-\uA8F7\uA8FB\uA90A-\uA925\uA930-\uA946\uA960-\uA97C\uA984-\uA9B2\uA9CF\uAA00-\uAA28\uAA40-\uAA42\uAA44-\uAA4B\uAA60-\uAA76\uAA7A\uAA80-\uAAAF\uAAB1\uAAB5\uAAB6\uAAB9-\uAABD\uAAC0\uAAC2\uAADB-\uAADD\uAAE0-\uAAEA\uAAF2-\uAAF4\uAB01-\uAB06\uAB09-\uAB0E\uAB11-\uAB16\uAB20-\uAB26\uAB28-\uAB2E\uABC0-\uABE2\uAC00-\uD7A3\uD7B0-\uD7C6\uD7CB-\uD7FB\uF900-\uFA6D\uFA70-\uFAD9\uFB00-\uFB06\uFB13-\uFB17\uFB1D\uFB1F-\uFB28\uFB2A-\uFB36\uFB38-\uFB3C\uFB3E\uFB40\uFB41\uFB43\uFB44\uFB46-\uFBB1\uFBD3-\uFD3D\uFD50-\uFD8F\uFD92-\uFDC7\uFDF0-\uFDFB\uFE70-\uFE74\uFE76-\uFEFC\uFF21-\uFF3A\uFF41-\uFF5A\uFF66-\uFFBE\uFFC2-\uFFC7\uFFCA-\uFFCF\uFFD2-\uFFD7\uFFDA-\uFFDC\u0030-\u0039\u00B2\u00B3\u00B9\u00BC-\u00BE\u0660-\u0669\u06F0-\u06F9\u07C0-\u07C9\u0966-\u096F\u09E6-\u09EF\u09F4-\u09F9\u0A66-\u0A6F\u0AE6-\u0AEF\u0B66-\u0B6F\u0B72-\u0B77\u0BE6-\u0BF2\u0C66-\u0C6F\u0C78-\u0C7E\u0CE6-\u0CEF\u0D66-\u0D75\u0E50-\u0E59\u0ED0-\u0ED9\u0F20-\u0F33\u1040-\u1049\u1090-\u1099\u1369-\u137C\u16EE-\u16F0\u17E0-\u17E9\u17F0-\u17F9\u1810-\u1819\u1946-\u194F\u19D0-\u19DA\u1A80-\u1A89\u1A90-\u1A99\u1B50-\u1B59\u1BB0-\u1BB9\u1C40-\u1C49\u1C50-\u1C59\u2070\u2074-\u2079\u2080-\u2089\u2150-\u2182\u2185-\u2189\u2460-\u249B\u24EA-\u24FF\u2776-\u2793\u2CFD\u3007\u3021-\u3029\u3038-\u303A\u3192-\u3195\u3220-\u3229\u3248-\u324F\u3251-\u325F\u3280-\u3289\u32B1-\u32BF\uA620-\uA629\uA6E6-\uA6EF\uA830-\uA835\uA8D0-\uA8D9\uA900-\uA909\uA9D0-\uA9D9\uAA50-\uAA59\uABF0-\uABF9\uFF10-\uFF19]+/g
 
-},{}],402:[function(require,module,exports){
+},{}],414:[function(require,module,exports){
 module.exports = /([\u0030-\u0039\u00B2\u00B3\u00B9\u00BC-\u00BE\u0660-\u0669\u06F0-\u06F9\u07C0-\u07C9\u0966-\u096F\u09E6-\u09EF\u09F4-\u09F9\u0A66-\u0A6F\u0AE6-\u0AEF\u0B66-\u0B6F\u0B72-\u0B77\u0BE6-\u0BF2\u0C66-\u0C6F\u0C78-\u0C7E\u0CE6-\u0CEF\u0D66-\u0D75\u0E50-\u0E59\u0ED0-\u0ED9\u0F20-\u0F33\u1040-\u1049\u1090-\u1099\u1369-\u137C\u16EE-\u16F0\u17E0-\u17E9\u17F0-\u17F9\u1810-\u1819\u1946-\u194F\u19D0-\u19DA\u1A80-\u1A89\u1A90-\u1A99\u1B50-\u1B59\u1BB0-\u1BB9\u1C40-\u1C49\u1C50-\u1C59\u2070\u2074-\u2079\u2080-\u2089\u2150-\u2182\u2185-\u2189\u2460-\u249B\u24EA-\u24FF\u2776-\u2793\u2CFD\u3007\u3021-\u3029\u3038-\u303A\u3192-\u3195\u3220-\u3229\u3248-\u324F\u3251-\u325F\u3280-\u3289\u32B1-\u32BF\uA620-\uA629\uA6E6-\uA6EF\uA830-\uA835\uA8D0-\uA8D9\uA900-\uA909\uA9D0-\uA9D9\uAA50-\uAA59\uABF0-\uABF9\uFF10-\uFF19])([^\u0030-\u0039\u00B2\u00B3\u00B9\u00BC-\u00BE\u0660-\u0669\u06F0-\u06F9\u07C0-\u07C9\u0966-\u096F\u09E6-\u09EF\u09F4-\u09F9\u0A66-\u0A6F\u0AE6-\u0AEF\u0B66-\u0B6F\u0B72-\u0B77\u0BE6-\u0BF2\u0C66-\u0C6F\u0C78-\u0C7E\u0CE6-\u0CEF\u0D66-\u0D75\u0E50-\u0E59\u0ED0-\u0ED9\u0F20-\u0F33\u1040-\u1049\u1090-\u1099\u1369-\u137C\u16EE-\u16F0\u17E0-\u17E9\u17F0-\u17F9\u1810-\u1819\u1946-\u194F\u19D0-\u19DA\u1A80-\u1A89\u1A90-\u1A99\u1B50-\u1B59\u1BB0-\u1BB9\u1C40-\u1C49\u1C50-\u1C59\u2070\u2074-\u2079\u2080-\u2089\u2150-\u2182\u2185-\u2189\u2460-\u249B\u24EA-\u24FF\u2776-\u2793\u2CFD\u3007\u3021-\u3029\u3038-\u303A\u3192-\u3195\u3220-\u3229\u3248-\u324F\u3251-\u325F\u3280-\u3289\u32B1-\u32BF\uA620-\uA629\uA6E6-\uA6EF\uA830-\uA835\uA8D0-\uA8D9\uA900-\uA909\uA9D0-\uA9D9\uAA50-\uAA59\uABF0-\uABF9\uFF10-\uFF19])/g
 
-},{}],403:[function(require,module,exports){
+},{}],415:[function(require,module,exports){
 var sentenceCase = require('sentence-case')
 
 /**
@@ -60467,9 +61241,9 @@ module.exports = function (string, locale) {
   return sentenceCase(string, locale, '-')
 }
 
-},{"sentence-case":399}],404:[function(require,module,exports){
+},{"sentence-case":411}],416:[function(require,module,exports){
 arguments[4][250][0].apply(exports,arguments)
-},{"dup":250}],405:[function(require,module,exports){
+},{"dup":250}],417:[function(require,module,exports){
 /**
  * Attribute types.
  */
@@ -60631,7 +61405,7 @@ module.exports = {
   properties: properties,
   attributeNames: attributeNames
 };
-},{}],406:[function(require,module,exports){
+},{}],418:[function(require,module,exports){
 
 /**
  * Void elements.
@@ -60656,12 +61430,12 @@ module.exports = {
   'track': true,
   'wbr': true
 };
-},{}],407:[function(require,module,exports){
+},{}],419:[function(require,module,exports){
 var h = require("./virtual-hyperscript/index.js")
 
 module.exports = h
 
-},{"./virtual-hyperscript/index.js":416}],408:[function(require,module,exports){
+},{"./virtual-hyperscript/index.js":428}],420:[function(require,module,exports){
 /*!
  * Cross-Browser Split 1.1.1
  * Copyright 2007-2012 Steven Levithan <stevenlevithan.com>
@@ -60769,7 +61543,7 @@ module.exports = (function split(undef) {
   return self;
 })();
 
-},{}],409:[function(require,module,exports){
+},{}],421:[function(require,module,exports){
 'use strict';
 
 var OneVersionConstraint = require('individual/one-version');
@@ -60791,7 +61565,7 @@ function EvStore(elem) {
     return hash;
 }
 
-},{"individual/one-version":411}],410:[function(require,module,exports){
+},{"individual/one-version":423}],422:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -60814,7 +61588,7 @@ function Individual(key, value) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],411:[function(require,module,exports){
+},{}],423:[function(require,module,exports){
 'use strict';
 
 var Individual = require('./index.js');
@@ -60838,7 +61612,7 @@ function OneVersion(moduleName, version, defaultValue) {
     return Individual(key, defaultValue);
 }
 
-},{"./index.js":410}],412:[function(require,module,exports){
+},{"./index.js":422}],424:[function(require,module,exports){
 var nativeIsArray = Array.isArray
 var toString = Object.prototype.toString
 
@@ -60848,7 +61622,7 @@ function isArray(obj) {
     return toString.call(obj) === "[object Array]"
 }
 
-},{}],413:[function(require,module,exports){
+},{}],425:[function(require,module,exports){
 'use strict';
 
 module.exports = AttributeHook;
@@ -60885,7 +61659,7 @@ AttributeHook.prototype.unhook = function (node, prop, next) {
 
 AttributeHook.prototype.type = 'AttributeHook';
 
-},{}],414:[function(require,module,exports){
+},{}],426:[function(require,module,exports){
 'use strict';
 
 var EvStore = require('ev-store');
@@ -60914,7 +61688,7 @@ EvHook.prototype.unhook = function(node, propertyName) {
     es[propName] = undefined;
 };
 
-},{"ev-store":409}],415:[function(require,module,exports){
+},{"ev-store":421}],427:[function(require,module,exports){
 'use strict';
 
 module.exports = SoftSetHook;
@@ -60933,7 +61707,7 @@ SoftSetHook.prototype.hook = function (node, propertyName) {
     }
 };
 
-},{}],416:[function(require,module,exports){
+},{}],428:[function(require,module,exports){
 'use strict';
 
 var isArray = require('x-is-array');
@@ -61072,7 +61846,7 @@ function errorString(obj) {
     }
 }
 
-},{"../vnode/is-thunk":418,"../vnode/is-vhook":419,"../vnode/is-vnode":420,"../vnode/is-vtext":421,"../vnode/is-widget":422,"../vnode/vnode.js":424,"../vnode/vtext.js":425,"./hooks/ev-hook.js":414,"./hooks/soft-set-hook.js":415,"./parse-tag.js":417,"x-is-array":412}],417:[function(require,module,exports){
+},{"../vnode/is-thunk":430,"../vnode/is-vhook":431,"../vnode/is-vnode":432,"../vnode/is-vtext":433,"../vnode/is-widget":434,"../vnode/vnode.js":436,"../vnode/vtext.js":437,"./hooks/ev-hook.js":426,"./hooks/soft-set-hook.js":427,"./parse-tag.js":429,"x-is-array":424}],429:[function(require,module,exports){
 'use strict';
 
 var split = require('browser-split');
@@ -61128,14 +61902,14 @@ function parseTag(tag, props) {
     return props.namespace ? tagName : tagName.toUpperCase();
 }
 
-},{"browser-split":408}],418:[function(require,module,exports){
+},{"browser-split":420}],430:[function(require,module,exports){
 module.exports = isThunk
 
 function isThunk(t) {
     return t && t.type === "Thunk"
 }
 
-},{}],419:[function(require,module,exports){
+},{}],431:[function(require,module,exports){
 module.exports = isHook
 
 function isHook(hook) {
@@ -61144,7 +61918,7 @@ function isHook(hook) {
        typeof hook.unhook === "function" && !hook.hasOwnProperty("unhook"))
 }
 
-},{}],420:[function(require,module,exports){
+},{}],432:[function(require,module,exports){
 var version = require("./version")
 
 module.exports = isVirtualNode
@@ -61153,7 +61927,7 @@ function isVirtualNode(x) {
     return x && x.type === "VirtualNode" && x.version === version
 }
 
-},{"./version":423}],421:[function(require,module,exports){
+},{"./version":435}],433:[function(require,module,exports){
 var version = require("./version")
 
 module.exports = isVirtualText
@@ -61162,17 +61936,17 @@ function isVirtualText(x) {
     return x && x.type === "VirtualText" && x.version === version
 }
 
-},{"./version":423}],422:[function(require,module,exports){
+},{"./version":435}],434:[function(require,module,exports){
 module.exports = isWidget
 
 function isWidget(w) {
     return w && w.type === "Widget"
 }
 
-},{}],423:[function(require,module,exports){
+},{}],435:[function(require,module,exports){
 module.exports = "2"
 
-},{}],424:[function(require,module,exports){
+},{}],436:[function(require,module,exports){
 var version = require("./version")
 var isVNode = require("./is-vnode")
 var isWidget = require("./is-widget")
@@ -61246,7 +62020,7 @@ function VirtualNode(tagName, properties, children, key, namespace) {
 VirtualNode.prototype.version = version
 VirtualNode.prototype.type = "VirtualNode"
 
-},{"./is-thunk":418,"./is-vhook":419,"./is-vnode":420,"./is-widget":422,"./version":423}],425:[function(require,module,exports){
+},{"./is-thunk":430,"./is-vhook":431,"./is-vnode":432,"./is-widget":434,"./version":435}],437:[function(require,module,exports){
 var version = require("./version")
 
 module.exports = VirtualText
@@ -61258,40 +62032,38 @@ function VirtualText(text) {
 VirtualText.prototype.version = version
 VirtualText.prototype.type = "VirtualText"
 
-},{"./version":423}],426:[function(require,module,exports){
+},{"./version":435}],438:[function(require,module,exports){
 (function (__dirname){
 const express = require('express')
 const app = express()
+const morgan = require('morgan')
 const is = require('check-more-types')
 const methodOverride = require('method-override')
+const bodyParser = require('body-parser')
 
-var bodyParser = require('body-parser')
+app.use(morgan('dev'))
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
 
-// override with POST having ?_method=DELETE
-app.use(methodOverride('_method'))
+function hasMethodField (req) {
+  return is.object(req.body) &&
+    is.unemptyString(req.body._method)
+}
 
-const aboutPage = [
-  '<!DOCTYPE html>',
-  '<html lang="en">',
-  '<head>',
-  '<meta charset="utf-8">',
-  '</head>',
-  '<body>',
-  '<h1>About express-service</h1>',
-  '</body>',
-  '</html>'
-].join('\n')
+function grabMethodFromBody (req, res) {
+  if (hasMethodField(req)) {
+    const method = req.body._method
+    delete req.body._method
+    return method
+  }
+}
+
+app.use(methodOverride(grabMethodFromBody))
 
 const renderIndexPage = require('./index-page')
 
 function sendIndexPage (req, res) {
   res.send(renderIndexPage())
-}
-
-function sendAboutPage (req, res) {
-  res.send(aboutPage)
 }
 
 function sendAppCss (req, res) {
@@ -61301,7 +62073,7 @@ function sendAppCss (req, res) {
   res.send(css)
 }
 
-function addTodo (req, res) {
+function addTodo (req, res, next) {
   console.log('adding new todo')
   console.log('post params', req.body)
 
@@ -61310,10 +62082,10 @@ function addTodo (req, res) {
     const db = require('./db')
     db.addTodo(req.body.what)
   }
-  res.redirect('/')
+  next()
 }
 
-function deleteTodo (req, res) {
+function deleteTodo (req, res, next) {
   console.log('deleting todo', req.body.id)
 
   // sync for now
@@ -61321,11 +62093,10 @@ function deleteTodo (req, res) {
     const db = require('./db')
     db.deleteTodo(req.body.id)
   }
-
-  res.redirect('/')
+  next()
 }
 
-function markTodo (req, res) {
+function markTodo (req, res, next) {
   console.log('marking todo', req.body.id, 'as done?', req.body.done)
 
   // sync for now
@@ -61334,22 +62105,21 @@ function markTodo (req, res) {
     db.markTodo(req.body.id, req.body.done === 'true')
   }
 
-  res.redirect('/')
+  next()
 }
 
 app.get('/', sendIndexPage)
 app.get('/app.css', sendAppCss)
-app.get('/about', sendAboutPage)
 
 // actions
-app.post('/', addTodo)
-app.delete('/', deleteTodo)
-app.patch('/mark', markTodo)
+app.post('/', addTodo, sendIndexPage)
+app.delete('/', deleteTodo, sendIndexPage)
+app.patch('/', markTodo, sendIndexPage)
 
 module.exports = app
 
 }).call(this,"/node_modules/todomvc-express/src")
-},{"./db":427,"./index-page":428,"body-parser":254,"check-more-types":304,"express":305,"fs":2,"method-override":386,"path":218}],427:[function(require,module,exports){
+},{"./db":439,"./index-page":440,"body-parser":254,"check-more-types":304,"express":305,"fs":2,"method-override":386,"morgan":393,"path":218}],439:[function(require,module,exports){
 (function (process){
 const la = require('lazy-ass')
 const is = require('check-more-types')
@@ -61437,7 +62207,7 @@ module.exports = {
 }
 
 }).call(this,require('_process'))
-},{"_process":219,"check-more-types":304,"fake-todos":379,"fs":2,"lazy-ass":385,"path":218,"todomvc-model":393}],428:[function(require,module,exports){
+},{"_process":219,"check-more-types":304,"fake-todos":379,"fs":2,"lazy-ass":385,"path":218,"todomvc-model":405}],440:[function(require,module,exports){
 const render = require('./render/render')
 const Todos = require('todomvc-model')
 const toHTML = require('vdom-to-html')
@@ -61478,7 +62248,7 @@ function renderIndexPage () {
 
 module.exports = renderIndexPage
 
-},{"./db":427,"./render/render":433,"js-beautify":381,"todomvc-model":393,"vdom-to-html":396}],429:[function(require,module,exports){
+},{"./db":439,"./render/render":445,"js-beautify":381,"todomvc-model":405,"vdom-to-html":408}],441:[function(require,module,exports){
 const h = require('virtual-dom/h')
 
 function hashFragment () {
@@ -61541,7 +62311,7 @@ function render (Todos) {
 
 module.exports = render
 
-},{"virtual-dom/h":407}],430:[function(require,module,exports){
+},{"virtual-dom/h":419}],442:[function(require,module,exports){
 const h = require('virtual-dom/h')
 
 function render (Todos) {
@@ -61563,7 +62333,7 @@ function render (Todos) {
 
 module.exports = render
 
-},{"virtual-dom/h":407}],431:[function(require,module,exports){
+},{"virtual-dom/h":419}],443:[function(require,module,exports){
 const h = require('virtual-dom/h')
 
 function render (Todos, todo) {
@@ -61572,7 +62342,7 @@ function render (Todos, todo) {
       h('form', {
         className: 'checkboxContainer',
         method: 'POST',
-        action: '/mark?_method=PATCH',
+        action: '/',
         enctype: 'application/x-www-form-urlencoded'
       }, [
         h('input', {
@@ -61590,12 +62360,17 @@ function render (Todos, todo) {
           type: 'hidden',
           name: 'id',
           value: todo.id
+        }),
+        h('input', {
+          type: 'hidden',
+          name: '_method',
+          value: 'PATCH'
         })
       ]),
       h('label', todo.what),
       h('form', {
         method: 'POST',
-        action: '/?_method=DELETE',
+        action: '/',
         enctype: 'application/x-www-form-urlencoded'
       }, [
         h('input', {
@@ -61606,6 +62381,11 @@ function render (Todos, todo) {
         h('button', {
           className: 'destroy',
           type: 'submit'
+        }),
+        h('input', {
+          type: 'hidden',
+          name: '_method',
+          value: 'DELETE'
         })
       ])
     ])
@@ -61614,7 +62394,7 @@ function render (Todos, todo) {
 
 module.exports = render
 
-},{"virtual-dom/h":407}],432:[function(require,module,exports){
+},{"virtual-dom/h":419}],444:[function(require,module,exports){
 const h = require('virtual-dom/h')
 const renderTodo = require('./render-todo')
 
@@ -61632,7 +62412,7 @@ function render (Todos) {
 
 module.exports = render
 
-},{"./render-todo":431,"virtual-dom/h":407}],433:[function(require,module,exports){
+},{"./render-todo":443,"virtual-dom/h":419}],445:[function(require,module,exports){
 const h = require('virtual-dom/h')
 const header = require('./render-header')
 const renderTodos = require('./render-todos')
@@ -61660,4 +62440,4 @@ function render (Todos) {
 
 module.exports = render
 
-},{"./render-footer":429,"./render-header":430,"./render-todos":432,"check-more-types":304,"lazy-ass":385,"virtual-dom/h":407}]},{},[1]);
+},{"./render-footer":441,"./render-header":442,"./render-todos":444,"check-more-types":304,"lazy-ass":385,"virtual-dom/h":419}]},{},[1]);
