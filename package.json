@@ -9,7 +9,8 @@
     "todomvc-build": "npm run todomvc-build-client && npm run todomvc-build-service",
     "todomvc-build-service": "browserify index.js -o dist/express-service.js",
     "todomvc-build-client": "mkdir dist || true && cp node_modules/express-service/dist/client.js node_modules/todomvc-express/src/app.css dist",
-    "start": "http-server dist"
+    "start": "http-server dist",
+    "deploy:dokku": "git push dokku master"
   },
   "repository": {
     "type": "git",
