@@ -37,7 +37,7 @@
   "dependencies": {
     "express-service": "1.7.0",
     "http-server": "0.8.5",
-    "todomvc-express": "1.2.0"
+    "todomvc-express": "1.3.0"
   },
   "devDependencies": {
     "browserify": "12.0.1",
