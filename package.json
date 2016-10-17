@@ -9,7 +9,7 @@
     "todomvc-build": "npm run todomvc-build-client && npm run todomvc-build-service",
     "todomvc-build-service": "browserify index.js -o dist/express-service.js",
     "todomvc-build-client": "mkdir dist || true && cp node_modules/express-service/dist/client.js node_modules/todomvc-express/src/app.css dist",
-    "start": "http-server dist",
+    "start": "http-server dist -c-1",
     "deploy:dokku": "git push dokku master"
   },
   "repository": {
@@ -33,7 +33,7 @@
   },
   "homepage": "https://github.com/bahmutov/todomvc-express-and-service-worker#readme",
   "dependencies": {
-    "express-service": "1.6.0",
+    "express-service": "1.7.0",
     "http-server": "0.8.5",
     "todomvc-express": "1.2.0"
   },
