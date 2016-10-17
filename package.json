@@ -10,7 +10,9 @@
     "todomvc-build-service": "browserify index.js -o dist/express-service.js",
     "todomvc-build-client": "mkdir dist || true && cp node_modules/express-service/dist/client.js node_modules/todomvc-express/src/app.css dist",
     "start": "http-server dist -c-1",
-    "deploy:dokku": "git push dokku master"
+    "deploy:dokku": "git push dokku master",
+    "commit": "commit-wizard",
+    "lint": "standard --verbose --fix *.js"
   },
   "repository": {
     "type": "git",
@@ -38,6 +40,20 @@
     "todomvc-express": "1.2.0"
   },
   "devDependencies": {
-    "browserify": "12.0.1"
+    "browserify": "12.0.1",
+    "pre-git": "3.10.0",
+    "standard": "8.4.0"
+  },
+  "config": {
+    "pre-git": {
+      "commit-msg": "simple",
+      "pre-commit": [
+        "npm run lint"
+      ],
+      "pre-push": [],
+      "post-commit": [],
+      "post-checkout": [],
+      "post-merge": []
+    }
   }
 }
